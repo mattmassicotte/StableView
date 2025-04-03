@@ -1,0 +1,47 @@
+import SwiftUI
+
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
+
+public struct PositionPreservingList<Content: View, Item: Hashable & Sendable> {
+	@Environment(\.refresh) private var refreshAction
+	
+	private let items: [Item]
+	private let content: (Item) -> Content
+	
+	public init(
+		items: [Item],
+		@ViewBuilder content: @escaping (Item) -> Content
+	) {
+		self.items = items
+		self.content = content
+	}
+}
+
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+extension PositionPreservingList : NSViewControllerRepresentable {
+	public typealias NSViewControllerType = NSViewController
+	
+	public func makeNSViewController(context: Context) -> NSViewControllerType {
+		NSViewController()
+	}
+	
+	public func updateNSViewController(_ viewController: NSViewControllerType, context: Context) {
+	}
+}
+#elseif canImport(UIKit)
+extension PositionPreservingList : UIViewControllerRepresentable {
+	public typealias UIViewControllerType = UIViewController
+	
+	public func makeUIViewController(context: Context) -> UIViewControllerType {
+		UIViewController()
+	}
+	
+	public func updateUIViewController(_ viewController: UIViewControllerType, context: Context) {
+	}
+}
+
+#endif
