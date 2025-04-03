@@ -23,24 +23,28 @@ public struct PositionPreservingList<Content: View, Item: Hashable & Sendable> {
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 extension PositionPreservingList : NSViewControllerRepresentable {
-	public typealias NSViewControllerType = NSViewController
+	public typealias NSViewControllerType = TableViewController<Content, Item>
 	
 	public func makeNSViewController(context: Context) -> NSViewControllerType {
-		NSViewController()
+		TableViewController(items: items, content: content)
 	}
 	
 	public func updateNSViewController(_ viewController: NSViewControllerType, context: Context) {
+		viewController.items = items
+		viewController.refreshAction = refreshAction
 	}
 }
 #elseif canImport(UIKit)
 extension PositionPreservingList : UIViewControllerRepresentable {
-	public typealias UIViewControllerType = UIViewController
+	public typealias UIViewControllerType = TableViewController<Content, Item>
 	
 	public func makeUIViewController(context: Context) -> UIViewControllerType {
-		UIViewController()
+		TableViewController(items: items, content: content)
 	}
 	
 	public func updateUIViewController(_ viewController: UIViewControllerType, context: Context) {
+		viewController.items = items
+		viewController.refreshAction = refreshAction
 	}
 }
 
