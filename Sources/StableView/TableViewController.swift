@@ -7,13 +7,14 @@ import UIKit
 #endif
 
 public final class TableViewController<Content: View, Item: Hashable & Sendable> : ViewController {
-	typealias Section = Int
+	enum Section {
+		case main
+	}
 	
-	private var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
 	let tableView = TableView(frame: .zero)
 	private let content: (Item) -> Content
 	var refreshAction: RefreshAction?
-#if canImport(UIKit)
+#if os(iOS) || os(visionOS)
 	let refreshControl = UIRefreshControl()
 #endif
 	
@@ -30,14 +31,14 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		@ViewBuilder content: @escaping (Item) -> Content
 	) {
 		self.content = content
-		self.items = items
 		
 		super.init(nibName: nil, bundle: nil)
 		
-		snapshot.appendSections([0])
+		self.items = items
 		
-#if canImport(UIKit)
+#if os(iOS) || os(visionOS)
 		tableView.refreshControl = refreshControl
+		refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
 #endif
 	}
 	
@@ -47,16 +48,22 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	}
 	
 	public var items: [Item] {
-		didSet {
-			snapshot.appendItems(items, toSection: 0)
+		get {
+			dataSource.snapshot().itemIdentifiers
+		}
+		set {
+			var snapshot = dataSource.snapshot()
 			
-			updateDataSource()
+			snapshot.deleteAllItems()
+			
+			snapshot.appendSections([.main])
+			snapshot.appendItems(newValue, toSection: .main)
+			
+			dataSource.apply(snapshot, animatingDifferences: true)
 		}
 	}
 	
 	public override func loadView() {
-		tableView.dataSource = dataSource
-		
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 		let column = NSTableColumn(identifier: .init("main"))
 		
@@ -70,18 +77,11 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		
 		self.view = scrollView
 #elseif canImport(UIKit)
-		refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
-		
 		self.view = tableView
 #endif
-		updateDataSource()
 	}
 	
-	private func updateDataSource() {
-		dataSource.apply(snapshot, animatingDifferences: true)
-	}
-	
-#if canImport(UIKit)
+#if os(iOS) || os(visionOS)
 	@objc private func refresh(_ refreshControl: UIRefreshControl) {
 		Task {
 			await refreshAction?()

@@ -50,8 +50,9 @@ struct ContentView : View {
 			PositionPreservingList(items: items) { item in
 				VStack(alignment: .leading) {
 					Text(item.name)
-						.font(.title)
+						.font(.title3)
 					Text(item.date.description)
+						.font(.caption)
 				}
 			}
 			.refreshable {
@@ -77,7 +78,7 @@ struct ContentView : View {
     }
 	
 	private func reload(allNew: Bool) async {
-		let count = (1..<10).randomElement()!
+		let count = (1..<5).randomElement()!
 		let oldestUnixtime = 0
 		let newestUnixtime = Int(items.first?.date.timeIntervalSince1970 ?? 0.0)
 		let probabilityOfNew = allNew ? 9 : 7

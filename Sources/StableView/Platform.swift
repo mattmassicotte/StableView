@@ -40,5 +40,4 @@ extension TableView {
 		return cell
 	}
 }
-
 #endif
