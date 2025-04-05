@@ -10,11 +10,11 @@ public struct PositionPreservingList<Content: View, Item: Hashable & Sendable> {
 	@Environment(\.refresh) private var refreshAction
 	
 	private let items: [Item]
-	private let content: (Item) -> Content
+	private let content: (Item, Int) -> Content
 	
 	public init(
 		items: [Item],
-		@ViewBuilder content: @escaping (Item) -> Content
+		@ViewBuilder content: @escaping (Item, Int) -> Content
 	) {
 		self.items = items
 		self.content = content

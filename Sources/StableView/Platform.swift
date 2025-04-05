@@ -5,22 +5,50 @@ import AppKit
 
 typealias TableViewDiffableDataSource = NSTableViewDiffableDataSource
 public typealias ViewController = NSViewController
-public typealias TableView = NSTableView
+typealias TableView = NSTableView
 
 extension TableViewDiffableDataSource {
 	convenience init(
 		tableView: NSTableView,
-		cellProvider: @escaping (NSTableView, Int, ItemIdentifierType) -> NSView
+		cellProvider: @escaping (NSTableView, IndexPath, ItemIdentifierType) -> NSView
 	) {
 		self.init(tableView: tableView) { tableView, _, row, item in
-			cellProvider(tableView, row, item)
+			cellProvider(tableView, IndexPath(item: row, section: 0), item)
 		}
+	}
+	
+	func indexPath(for itemIdentifier: ItemIdentifierType) -> IndexPath? {
+		guard let row = row(forItemIdentifier: itemIdentifier) else {
+			return nil
+		}
+		
+		return IndexPath(item: row, section: 0)
 	}
 }
 
-extension TableView {
-	func dequeueHostingCell<Content: View>(identifier: String, content: () -> Content) -> NSView {
-		NSHostingView(rootView: content())
+extension TableView {	
+	var indexPathsForVisibleRows: [IndexPath]? {
+		let rows = rows(in: visibleRect)
+		
+		return (rows.lowerBound..<rows.upperBound).map { i in
+			IndexPath(arrayLiteral: 0, i)
+		}
+	}
+	
+	func rectForRow(at indexPath: IndexPath) -> CGRect {
+		rect(ofRow: indexPath.row)
+	}
+}
+
+extension IndexPath {
+	public var row: Int {
+		item
+	}
+}
+
+extension NSScrollView {
+	public var contentOffset: CGPoint {
+		contentView.bounds.origin
 	}
 }
 
@@ -29,15 +57,5 @@ import UIKit
 
 typealias TableViewDiffableDataSource = UITableViewDiffableDataSource
 public typealias ViewController = UIViewController
-public typealias TableView = UITableView
-
-extension TableView {
-	func dequeueHostingCell<Content: View>(identifier: String, content: () -> Content) -> UITableViewCell {
-		let cell = dequeueReusableCell(withIdentifier: identifier) ?? UITableViewCell()
-		
-		cell.contentConfiguration = UIHostingConfiguration(content: content)
-		
-		return cell
-	}
-}
+typealias TableView = UITableView
 #endif

@@ -47,12 +47,16 @@ struct ContentView : View {
 	
     var body: some View {
 		VStack {
-			PositionPreservingList(items: items) { item in
-				VStack(alignment: .leading) {
-					Text(item.name)
-						.font(.title3)
-					Text(item.date.description)
-						.font(.caption)
+			PositionPreservingList(items: items) { item, row in
+				HStack {
+					Text(String(row))
+						.font(.title)
+					VStack(alignment: .leading) {
+						Text(item.name)
+							.font(.title3)
+						Text(item.date.description)
+							.font(.caption)
+					}
 				}
 			}
 			.refreshable {
