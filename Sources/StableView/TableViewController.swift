@@ -112,6 +112,8 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	@objc private func refresh(_ refreshControl: UIRefreshControl) {
 		Task {
 			await refreshAction?()
+			
+			refreshControl.endRefreshing()
 		}
 	}
 #endif
