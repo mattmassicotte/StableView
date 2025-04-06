@@ -2,8 +2,12 @@ import SwiftUI
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
+
+public typealias TableViewControllerDelegatingType = NSScrollViewDelegate
 #elseif canImport(UIKit)
 import UIKit
+
+public typealias TableViewControllerDelegatingType = UITableViewDelegate
 #endif
 
 extension TableView {
@@ -22,14 +26,9 @@ extension TableView {
 #endif
 }
 
-public final class TableViewController<Content: View, Item: Hashable & Sendable> : ViewController {
+public final class TableViewController<Content: View, Item: Hashable & Sendable> : ViewController, TableViewControllerDelegatingType {
 	enum Section {
 		case main
-	}
-	
-	struct ScrollState {
-		let anchorItem: Item
-		let offset: CGFloat
 	}
 	
 	let tableView = TableView(frame: .zero)
@@ -38,6 +37,7 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 #if os(iOS) || os(visionOS)
 	let refreshControl = UIRefreshControl()
 #endif
+	var scrollStateHandler: ((ScrollState<Item>) -> Void)?
 	
 	private lazy var dataSource: TableViewDiffableDataSource<Section, Item> = {
 		TableViewDiffableDataSource<Section, Item>(tableView: tableView) { [content] tableView, path, item in
@@ -61,6 +61,8 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		tableView.refreshControl = refreshControl
 		refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
 #endif
+		
+		tableView.delegate = self
 	}
 	
 	@available(*, unavailable)
@@ -75,6 +77,8 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		set {
 			let state = currentScrollState
 			
+			scrollStateHandler?(state)
+			
 			var snapshot = dataSource.snapshot()
 			
 			snapshot.deleteAllItems()
@@ -84,9 +88,7 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 			
 			dataSource.apply(snapshot, animatingDifferences: false)
 			
-			if let state {
-				setScrollState(to: state)
-			}
+			setScrollState(to: state)
 		}
 	}
 	
@@ -110,6 +112,8 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	
 #if os(iOS) || os(visionOS)
 	@objc private func refresh(_ refreshControl: UIRefreshControl) {
+		refreshControl.beginRefreshing()
+
 		Task {
 			await refreshAction?()
 			
@@ -117,6 +121,16 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		}
 	}
 #endif
+	
+	public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+		let state = currentScrollState
+		
+		scrollStateHandler?(state)
+	}
+	
+	public func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
+		false
+	}
 }
 
 extension TableViewController {
@@ -145,12 +159,12 @@ extension TableViewController {
 		scrollView.contentOffset.y
 	}
 	
-	var currentScrollState: ScrollState? {
+	private var currentScrollState: ScrollState<Item> {
 		guard
 			let indexPaths = tableView.indexPathsForVisibleRows,
 			let topRowPath = indexPaths.first
 		else {
-			return nil
+			return .absolute(0.0)
 		}
 		
 		let item = items[topRowPath.row]
@@ -158,27 +172,31 @@ extension TableViewController {
 		let rowPosition = scrollPosition(at: topRowPath)
 				
 		let offset = scrollPosition - rowPosition
-		print("get:", rowPosition, offset, topRowPath, item)
 		
-		return ScrollState(anchorItem: item, offset: offset)
+		return ScrollState.anchor(item, offset: offset)
 	}
 	
-	func setScrollState(to state: ScrollState) {
-		guard let index = dataSource.indexPath(for: state.anchorItem) else {
-			return
+	private func setScrollState(to state: ScrollState<Item>) {
+		let yPosition: CGFloat
+		
+		switch state {
+		case let .absolute(pos):
+			yPosition = pos
+		case let .anchor(item, offset: offset):
+			guard let index = dataSource.indexPath(for: item) else {
+				return
+			}
+			
+			yPosition = scrollPosition(at: index) + offset
 		}
 		
-		let rowPosition = scrollPosition(at: index)
+		let point = CGPoint(x: 0, y: yPosition)
 		
-		let point = CGPoint(x: 0, y: rowPosition + state.offset)
-		
-		print("set:", rowPosition, state.offset, index, state.anchorItem)
-		
-		#if os(macOS)
+#if os(macOS)
 		tableView.scroll(point)
-		#else
+#else
 		tableView.layoutIfNeeded()
 		tableView.setContentOffset(point, animated: false)
-		#endif
+#endif
 	}
 }

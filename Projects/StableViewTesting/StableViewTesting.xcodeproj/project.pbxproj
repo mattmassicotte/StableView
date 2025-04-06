@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C959B7842DA313FF005A057B /* StableView in Frameworks */ = {isa = PBXBuildFile; productRef = C959B7832DA313FF005A057B /* StableView */; };
 		C9638B452D9F169F007662D9 /* StableView in Frameworks */ = {isa = PBXBuildFile; productRef = C9638B442D9F169F007662D9 /* StableView */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		C9638B2C2D9F153D007662D9 /* StableViewTesting.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StableViewTesting.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		C9638B422D9F160E007662D9 /* StableView */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = StableView; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -28,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C959B7842DA313FF005A057B /* StableView in Frameworks */,
 				C9638B452D9F169F007662D9 /* StableView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -38,7 +39,6 @@
 		C9638B232D9F153D007662D9 = {
 			isa = PBXGroup;
 			children = (
-				C9638B422D9F160E007662D9 /* StableView */,
 				C9638B2E2D9F153D007662D9 /* StableViewTesting */,
 				C9638B432D9F169F007662D9 /* Frameworks */,
 				C9638B2D2D9F153D007662D9 /* Products */,
@@ -81,6 +81,7 @@
 			name = StableViewTesting;
 			packageProductDependencies = (
 				C9638B442D9F169F007662D9 /* StableView */,
+				C959B7832DA313FF005A057B /* StableView */,
 			);
 			productName = StableViewTesting;
 			productReference = C9638B2C2D9F153D007662D9 /* StableViewTesting.app */;
@@ -110,6 +111,9 @@
 			);
 			mainGroup = C9638B232D9F153D007662D9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C959B7822DA313FF005A057B /* XCLocalSwiftPackageReference "../../../StableView" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C9638B2D2D9F153D007662D9 /* Products */;
 			projectDirPath = "";
@@ -360,7 +364,18 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		C959B7822DA313FF005A057B /* XCLocalSwiftPackageReference "../../../StableView" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../../StableView;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		C959B7832DA313FF005A057B /* StableView */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StableView;
+		};
 		C9638B442D9F169F007662D9 /* StableView */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = StableView;

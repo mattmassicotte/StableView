@@ -6,7 +6,7 @@ let names = [
 	"Aziz",
 	"Billy",
 	"Jean-Baptiste Emanuel Zorg",
-	"Korben",
+	"Korben Dallas",
 	"Leeloo",
 	"Ruby Rhod",
 	"Vito Cornelius",
@@ -43,11 +43,15 @@ extension Item : Comparable {
 }
 
 struct ContentView : View {
-	@State var items: [Item] = []
+	@State private var items: [Item] = []
+	@State private var scrollState: ScrollState<Item> = .absolute(0.0)
 	
     var body: some View {
 		VStack {
-			PositionPreservingList(items: items) { item, row in
+			VStack {
+				Text("\(scrollState)")
+			}
+			PositionPreservingList(items: items, scrollState: $scrollState) { item, row in
 				HStack {
 					Text(String(row))
 						.font(.title)
@@ -62,7 +66,6 @@ struct ContentView : View {
 			.refreshable {
 				await reload(allNew: false)
 			}
-			
 			HStack {
 				Button("Clear") {
 					self.items.removeAll()
