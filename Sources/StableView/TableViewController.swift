@@ -3,7 +3,10 @@ import SwiftUI
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
 
-public typealias TableViewControllerDelegatingType = NSScrollViewDelegate
+public protocol ScrollViewDelegate {
+}
+
+public typealias TableViewControllerDelegatingType = ScrollViewDelegate
 #elseif canImport(UIKit)
 import UIKit
 
@@ -60,9 +63,9 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 #if os(iOS) || os(visionOS)
 		tableView.refreshControl = refreshControl
 		refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
-#endif
 		
 		tableView.delegate = self
+#endif
 	}
 	
 	@available(*, unavailable)
@@ -120,7 +123,6 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 			refreshControl.endRefreshing()
 		}
 	}
-#endif
 	
 	public func scrollViewDidScroll(_ scrollView: UIScrollView) {
 		let state = currentScrollState
@@ -131,6 +133,7 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	public func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
 		false
 	}
+#endif
 }
 
 extension TableViewController {
