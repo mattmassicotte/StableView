@@ -6,6 +6,7 @@ import AppKit
 typealias TableViewDiffableDataSource = NSTableViewDiffableDataSource
 public typealias ViewController = NSViewController
 typealias TableView = NSTableView
+typealias ScrollView = NSScrollView
 
 extension TableViewDiffableDataSource {
 	convenience init(
@@ -41,14 +42,22 @@ extension TableView {
 }
 
 extension IndexPath {
-	public var row: Int {
+	var row: Int {
 		item
+	}
+	
+	init(row: Int, section: Int) {
+		self.init(item: row, section: section)
 	}
 }
 
 extension NSScrollView {
-	public var contentOffset: CGPoint {
+	var contentOffset: CGPoint {
 		contentView.bounds.origin
+	}
+	
+	var contentInset: NSEdgeInsets {
+		self.contentInsets
 	}
 }
 
@@ -58,4 +67,5 @@ import UIKit
 typealias TableViewDiffableDataSource = UITableViewDiffableDataSource
 public typealias ViewController = UIViewController
 typealias TableView = UITableView
+typealias ScrollView = UIScrollView
 #endif

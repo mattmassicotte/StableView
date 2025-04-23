@@ -6,26 +6,27 @@ import AppKit
 import UIKit
 #endif
 
-public enum ScrollState<Item: Hashable & Sendable> {
-	case anchor(Item, offset: CGFloat)
+public enum AnchoredListPosition<Item: Hashable & Sendable> {
+	case item(Item, offset: CGFloat)
 	case absolute(CGFloat)
 }
 
-extension ScrollState : Equatable where Item : Equatable {}
-extension ScrollState : Hashable where Item : Hashable {}
+extension AnchoredListPosition : Equatable where Item : Equatable {}
+extension AnchoredListPosition : Hashable where Item : Hashable {}
 
-public struct PositionPreservingList<Content: View, Item: Hashable & Sendable> {
+public struct AnchoredList<Content: View, Item: Hashable & Sendable> {
 	public typealias ViewControllerType = TableViewController<Content, Item>
 	
 	@Environment(\.refresh) private var refreshAction
-	@Binding var scrollState: ScrollState<Item>
+	@Binding private var scrollState: AnchoredListPosition<Item>
 	
 	private let items: [Item]
 	private let content: (Item, Int) -> Content
+	var fallbackToTop: Bool = true
 	
 	public init(
 		items: [Item],
-		scrollState: Binding<ScrollState<Item>>,
+		scrollState: Binding<AnchoredListPosition<Item>>,
 		@ViewBuilder content: @escaping (Item, Int) -> Content
 	) {
 		self.items = items
@@ -35,7 +36,7 @@ public struct PositionPreservingList<Content: View, Item: Hashable & Sendable> {
 }
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-extension PositionPreservingList : NSViewControllerRepresentable {
+extension AnchoredList : NSViewControllerRepresentable {
 	public typealias NSViewControllerType = ViewControllerType
 	
 	public func makeNSViewController(context: Context) -> NSViewControllerType {
@@ -48,7 +49,7 @@ extension PositionPreservingList : NSViewControllerRepresentable {
 	}
 }
 #elseif canImport(UIKit)
-extension PositionPreservingList : UIViewControllerRepresentable {
+extension AnchoredList : UIViewControllerRepresentable {
 	public typealias UIViewControllerType = ViewControllerType
 	
 	public func makeUIViewController(context: Context) -> UIViewControllerType {
@@ -65,5 +66,19 @@ extension PositionPreservingList : UIViewControllerRepresentable {
 		}
 	}
 }
-
 #endif
+
+//extension AnchoredList {
+//	@available(macOS 15.0, macCatalyst 18.0, iOS 18.0, tvOS 18.0, visionOS 2.0, *)
+//	public func expectedScrollingDirection(_ direction: VerticalDirection) -> Self {
+//		expectedScrollingDirection(up: direction == .up)
+//	}
+//	
+//	public func expectedScrollingDirection(up: Bool) -> Self {
+//		var view = self
+//		
+//		view.fallbackToTop = up
+//		
+//		return view
+//	}
+//}

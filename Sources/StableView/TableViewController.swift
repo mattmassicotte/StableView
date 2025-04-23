@@ -13,48 +13,37 @@ import UIKit
 public typealias TableViewControllerDelegatingType = UITableViewDelegate
 #endif
 
-extension TableView {
-#if canImport(AppKit) && !targetEnvironment(macCatalyst)
-	func dequeueHostingCell<Content: View>(identifier: String, content: () -> Content) -> NSView {
-		NSHostingView(rootView: content())
-	}
-#else
-	func dequeueHostingCell<Content: View>(identifier: String, content: () -> Content) -> UITableViewCell {
-		let cell = dequeueReusableCell(withIdentifier: identifier) ?? UITableViewCell()
-		
-		cell.contentConfiguration = UIHostingConfiguration(content: content)
-		
-		return cell
-	}
-#endif
-}
-
 public final class TableViewController<Content: View, Item: Hashable & Sendable> : ViewController, TableViewControllerDelegatingType {
+	public typealias Position = AnchoredListPosition<Item>
+	
 	enum Section {
 		case main
 	}
 	
 	let tableView = TableView(frame: .zero)
-	private let content: (Item, Int) -> Content
-	var refreshAction: RefreshAction?
+	public var refreshAction: RefreshAction?
+	public var expectsScrollingUp: Bool = true
 #if os(iOS) || os(visionOS)
 	let refreshControl = UIRefreshControl()
 #endif
-	var scrollStateHandler: ((ScrollState<Item>) -> Void)?
-	
-	private lazy var dataSource: TableViewDiffableDataSource<Section, Item> = {
-		TableViewDiffableDataSource<Section, Item>(tableView: tableView) { [content] tableView, path, item in
-			return tableView.dequeueHostingCell(identifier: "id") {
-				content(item, path.row)
-			}
+	public var scrollStateHandler: ((AnchoredListPosition<Item>) -> Void)?
+	private let dataSource: TableViewDiffableDataSource<Section, Item>
+	private var layoutSize: CGSize = .zero
+	private var scrollState: Position = .absolute(0.0) {
+		didSet {
+			scrollStateChanged()
 		}
-	}()
-	
+	}
+
 	public init(
 		items: [Item],
 		@ViewBuilder content: @escaping (Item, Int) -> Content
 	) {
-		self.content = content
+		self.dataSource = TableViewDiffableDataSource<Section, Item>(tableView: tableView) { [content] tableView, path, item in
+			tableView.dequeueHostingCell(identifier: "id") {
+				content(item, path.row)
+			}
+		}
 		
 		super.init(nibName: nil, bundle: nil)
 		
@@ -78,21 +67,27 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 			dataSource.snapshot().itemIdentifiers
 		}
 		set {
-			let state = currentScrollState
-			
-			scrollStateHandler?(state)
-			
-			var snapshot = dataSource.snapshot()
-			
-			snapshot.deleteAllItems()
-			
-			snapshot.appendSections([.main])
-			snapshot.appendItems(newValue, toSection: .main)
-			
-			dataSource.apply(snapshot, animatingDifferences: false)
-			
-			setScrollState(to: state)
+			withScrollStateMutation {
+				var snapshot = dataSource.snapshot()
+				
+				snapshot.deleteAllItems()
+				
+				snapshot.appendSections([.main])
+				snapshot.appendItems(newValue, toSection: .main)
+				
+				dataSource.apply(snapshot, animatingDifferences: false)
+			}
 		}
+	}
+	
+	private func withScrollStateMutation(_ block: () -> Void) {
+		let state = currentScrollState
+		
+		block()
+		
+		guard state != scrollState else { return }
+		
+		setScrollState(to: state)
 	}
 	
 	public override func loadView() {
@@ -102,8 +97,14 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		tableView.addTableColumn(column)
 		tableView.usesAutomaticRowHeights = true
 		tableView.headerView = nil
+		tableView.allowsColumnResizing = false 
+		tableView.allowsEmptySelection = true
+		tableView.allowsMultipleSelection = false
 		
 		let scrollView = NSScrollView()
+		
+		scrollView.hasVerticalScroller = true
+		scrollView.hasHorizontalRuler = true
 		
 		scrollView.documentView = tableView
 		
@@ -125,19 +126,26 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	}
 	
 	public func scrollViewDidScroll(_ scrollView: UIScrollView) {
-		let state = currentScrollState
-		
-		scrollStateHandler?(state)
+		scrollPositionChanged()
 	}
 	
 	public func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
 		false
 	}
+	
+	public override func viewWillLayoutSubviews() {
+		super.viewWillLayoutSubviews()
+	}
+	
+	public override func viewDidLayoutSubviews() {
+		super.viewDidLayoutSubviews()
+//		print("layout: ", tableView.frame)
+	}
 #endif
 }
 
 extension TableViewController {
-	private func scrollPosition(at path: IndexPath) -> CGFloat {
+	private func scrollPosition(at path	: IndexPath) -> CGFloat {
 		let rect = tableView.rectForRow(at: path)
 		
 #if os(macOS)
@@ -162,10 +170,28 @@ extension TableViewController {
 		scrollView.contentOffset.y
 	}
 	
-	private var currentScrollState: ScrollState<Item> {
+	private var bottomScrollPosition: CGFloat {
+		let snapshot = dataSource.snapshot()
+		
+		guard
+			let lastItem = snapshot.itemIdentifiers.last,
+			let row = snapshot.indexOfItem(lastItem)
+		else {
+			return 0.0
+		}
+		
+		let indexPath = IndexPath(row: row, section: 0)
+		
+		return scrollPosition(at: indexPath)
+	}
+}
+
+extension TableViewController {
+	private var currentScrollState: Position {
 		guard
 			let indexPaths = tableView.indexPathsForVisibleRows,
-			let topRowPath = indexPaths.first
+			let topRowPath = indexPaths.first,
+			let bottomRowPath = indexPaths.last
 		else {
 			return .absolute(0.0)
 		}
@@ -176,21 +202,23 @@ extension TableViewController {
 				
 		let offset = scrollPosition - rowPosition
 		
-		return ScrollState.anchor(item, offset: offset)
+		return Position.item(item, offset: offset)
 	}
 	
-	private func setScrollState(to state: ScrollState<Item>) {
+	private func setScrollState(to state: Position) {
 		let yPosition: CGFloat
 		
 		switch state {
 		case let .absolute(pos):
 			yPosition = pos
-		case let .anchor(item, offset: offset):
-			guard let index = dataSource.indexPath(for: item) else {
-				return
+		case let .item(item, offset: offset):
+			if let index = dataSource.indexPath(for: item) {
+				yPosition = scrollPosition(at: index) + offset
+				break
 			}
 			
-			yPosition = scrollPosition(at: index) + offset
+			// the current anchor is no longer in the table, so we have to pick a fallback
+			yPosition = expectsScrollingUp ? bottomScrollPosition : 0.0
 		}
 		
 		let point = CGPoint(x: 0, y: yPosition)
@@ -201,5 +229,23 @@ extension TableViewController {
 		tableView.layoutIfNeeded()
 		tableView.setContentOffset(point, animated: false)
 #endif
+		
+		scrollState = state
+	}
+}
+
+extension TableViewController {
+	private func scrollPositionChanged() {
+	}
+	
+	private func tableLayoutChanged() {
+	}
+	
+	private func withContentMutation(_ block: () -> Void) {
+		block()
+	}
+	
+	private func scrollStateChanged() {
+		scrollStateHandler?(scrollState)
 	}
 }

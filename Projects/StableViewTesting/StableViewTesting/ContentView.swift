@@ -51,7 +51,7 @@ struct ContentView : View {
 			VStack {
 				Text("\(scrollState)")
 			}
-			PositionPreservingList(items: items, scrollState: $scrollState) { item, row in
+			AnchoredList(items: items, scrollState: $scrollState) { item, row in
 				HStack {
 					Text(String(row))
 						.font(.title)
@@ -62,6 +62,7 @@ struct ContentView : View {
 							.font(.caption)
 					}
 				}
+				.background(.clear)
 			}
 			.refreshable {
 				await reload(allNew: false)
@@ -85,10 +86,12 @@ struct ContentView : View {
     }
 	
 	private func reload(allNew: Bool) async {
-		let count = (1..<5).randomElement()!
+		let count = (20..<21).randomElement()!
 		let oldestUnixtime = 0
 		let newestUnixtime = Int(items.first?.date.timeIntervalSince1970 ?? 0.0)
 		let probabilityOfNew = allNew ? 9 : 7
+		
+		self.items = []
 		
 		for _ in 0..<count {
 			let new = (probabilityOfNew..<10).randomElement()! >= 7
