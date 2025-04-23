@@ -9,7 +9,16 @@ import UIKit
 extension TableView {
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 	func dequeueHostingCell<Content: View>(identifier: String, content: () -> Content) -> NSView {
-		let view = NSHostingView(rootView: content())
+		let reusedView = self.makeView(withIdentifier: NSUserInterfaceItemIdentifier(identifier), owner: nil)
+		let content = content()
+		
+		if let view = reusedView as? NSHostingView<Content> {
+			view.rootView = content
+			
+			return view
+		}
+		
+		let view = NSHostingView(rootView: content)
 		
 		view.translatesAutoresizingMaskIntoConstraints = false
 
