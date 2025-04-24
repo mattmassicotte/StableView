@@ -1,5 +1,16 @@
+<div align="center">
+
+[![Build Status][build status badge]][build status]
+[![Platforms][platforms badge]][platforms]
+[![Documentation][documentation badge]][documentation]
+[![Matrix][matrix badge]][matrix]
+
+</div>
+
 # StableView
-A TableView implementation that can preserve position
+A list implementation that can preserve position
+
+This is a SwiftUI wrapper around `NS`/`UITableView`. It is superfically-similar to SwiftUI's `List`, but with an additional property that can be used to control scroll position.
 
 > [!WARNING]
 > I'm just experimenting at the moment. This doesn't work yet.
@@ -10,6 +21,23 @@ A TableView implementation that can preserve position
 dependencies: [
     .package(url: "https://github.com/mattmassicotte/StableView", branch: "main")
 ]
+```
+
+## Usage
+
+The position preservation system works via the `scrollState` binding.
+
+```swift
+struct AnchoredView: View {
+    let items = ["one", "two", "three"]
+    @State private var position: AnchoredListPosition<String> = .item("two", offset: 2.0)
+
+    public var body: some View {
+       AnchoredList(items: items, scrollState: $position) { item, row in
+           Text("item: \(item)")
+       }
+    }
+}
 ```
 
 ## Contributing and Collaboration
