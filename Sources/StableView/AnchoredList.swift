@@ -46,6 +46,9 @@ extension AnchoredList : NSViewControllerRepresentable {
 	public func updateNSViewController(_ viewController: NSViewControllerType, context: Context) {
 		viewController.items = items
 		viewController.refreshAction = refreshAction
+		viewController.scrollStateHandler = { state in
+			scrollState = state
+		}
 	}
 }
 #elseif canImport(UIKit)

@@ -25,6 +25,7 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	public var expectsScrollingUp: Bool = true
 #if os(iOS) || os(visionOS)
 	let refreshControl = UIRefreshControl()
+#else
 #endif
 	public var scrollStateHandler: ((AnchoredListPosition<Item>) -> Void)?
 	private let dataSource: TableViewDiffableDataSource<Section, Item>
@@ -62,11 +63,19 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		fatalError("init(coder:) has not been implemented")
 	}
 	
+	deinit {
+		NotificationCenter.default.removeObserver(self)
+	}
+	
 	public var items: [Item] {
 		get {
 			dataSource.snapshot().itemIdentifiers
 		}
 		set {
+			if newValue == items {
+				return
+			}
+			
 			withScrollStateMutation {
 				var snapshot = dataSource.snapshot()
 				
@@ -106,6 +115,14 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		scrollView.hasVerticalScroller = true
 		scrollView.hasHorizontalRuler = true
 		
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(scrollContentBoundsDidChange(_:)),
+			name: NSView.boundsDidChangeNotification,
+			object: scrollView.contentView
+		)
+
+		
 		scrollView.documentView = tableView
 		
 		self.view = scrollView
@@ -140,6 +157,11 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	public override func viewDidLayoutSubviews() {
 		super.viewDidLayoutSubviews()
 //		print("layout: ", tableView.frame)
+	}
+#else
+	@objc
+	private func scrollContentBoundsDidChange(_ notification: Notification) {
+		scrollPositionChanged()
 	}
 #endif
 }
@@ -236,6 +258,7 @@ extension TableViewController {
 
 extension TableViewController {
 	private func scrollPositionChanged() {
+		self.scrollState = currentScrollState
 	}
 	
 	private func tableLayoutChanged() {
