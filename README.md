@@ -13,7 +13,7 @@ A list implementation that can preserve position
 This is a SwiftUI wrapper around `NS`/`UITableView`. It is superfically-similar to SwiftUI's `List`, but with an additional property that can be used to control scroll position.
 
 > [!WARNING]
-> I'm just experimenting at the moment. This doesn't work yet.
+> I'm just experimenting at the moment. This only kind of works.
 
 ## Integration
 
@@ -30,10 +30,10 @@ The position preservation system works via the `scrollState` binding.
 ```swift
 struct AnchoredView: View {
     let items = ["one", "two", "three"]
-    @State private var position: AnchoredListPosition<String> = .item("two", offset: 2.0)
+    @State private var position: AnchoredListPosition<String>? = AnchoredListPosition(item: "two")
 
     public var body: some View {
-       AnchoredList(items: items, scrollState: $position) { item, row in
+       AnchoredList(items: items, position: $position) { item, row in
            Text("item: \(item)")
        }
     }

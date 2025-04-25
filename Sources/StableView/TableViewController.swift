@@ -27,10 +27,10 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	let refreshControl = UIRefreshControl()
 #else
 #endif
-	public var scrollStateHandler: ((AnchoredListPosition<Item>) -> Void)?
+	public var positionChangedHandler: ((AnchoredListPosition<Item>?) -> Void)?
 	private let dataSource: TableViewDiffableDataSource<Section, Item>
 	private var layoutSize: CGSize = .zero
-	private var scrollState: Position = .absolute(0.0) {
+	private var scrollState: Position? {
 		didSet {
 			scrollStateChanged()
 		}
@@ -76,6 +76,8 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 				return
 			}
 			
+			print("actually updating:", newValue.count)
+			
 			withScrollStateMutation {
 				var snapshot = dataSource.snapshot()
 				
@@ -90,13 +92,21 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	}
 	
 	private func withScrollStateMutation(_ block: () -> Void) {
-		let state = currentScrollState
+		let startingState = currentScrollState
 		
 		block()
 		
-		guard state != scrollState else { return }
+		let newState = currentScrollState
 		
-		setScrollState(to: state)
+		guard startingState != newState else { return }
+		
+		// we always restore the starting state *unless* that state was nil
+		if startingState == nil && newState != nil {
+			self.scrollState = newState
+			return
+		}
+		
+		setScrollState(to: startingState ?? newState)
 	}
 	
 	public override func loadView() {
@@ -209,40 +219,37 @@ extension TableViewController {
 }
 
 extension TableViewController {
-	private var currentScrollState: Position {
+	private var currentScrollState: Position? {
 		guard
 			let indexPaths = tableView.indexPathsForVisibleRows,
-			let topRowPath = indexPaths.first,
-			let bottomRowPath = indexPaths.last
+			let topRowPath = indexPaths.first
 		else {
-			return .absolute(0.0)
+			return nil
 		}
 		
 		let item = items[topRowPath.row]
 		
 		let rowPosition = scrollPosition(at: topRowPath)
 				
-		let offset = scrollPosition - rowPosition
+		// clamp this to avoid rubber banding making it negative
+		let offset = max(scrollPosition - rowPosition, 0.0)
 		
-		return Position.item(item, offset: offset)
+		return Position(item: item, offset: offset)
 	}
 	
-	private func setScrollState(to state: Position) {
-		let yPosition: CGFloat
-		
-		switch state {
-		case let .absolute(pos):
-			yPosition = pos
-		case let .item(item, offset: offset):
-			if let index = dataSource.indexPath(for: item) {
-				yPosition = scrollPosition(at: index) + offset
-				break
-			}
-			
-			// the current anchor is no longer in the table, so we have to pick a fallback
-			yPosition = expectsScrollingUp ? bottomScrollPosition : 0.0
+	private func setScrollState(to pos: Position?) {
+		guard let pos else {
+			scrollState = nil
+			return
 		}
 		
+		guard let index = dataSource.indexPath(for: pos.item) else {
+			print("uh oh that item isn't in the datasource")
+			scrollState = nil
+			return
+		}
+		
+		let yPosition = scrollPosition(at: index) + pos.offset
 		let point = CGPoint(x: 0, y: yPosition)
 		
 #if os(macOS)
@@ -252,7 +259,7 @@ extension TableViewController {
 		tableView.setContentOffset(point, animated: false)
 #endif
 		
-		scrollState = state
+		self.scrollState = pos
 	}
 }
 
@@ -269,6 +276,6 @@ extension TableViewController {
 	}
 	
 	private func scrollStateChanged() {
-		scrollStateHandler?(scrollState)
+		positionChangedHandler?(scrollState)
 	}
 }

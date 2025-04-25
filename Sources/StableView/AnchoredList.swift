@@ -6,19 +6,27 @@ import AppKit
 import UIKit
 #endif
 
-public enum AnchoredListPosition<Item: Hashable & Sendable> {
-	case item(Item, offset: CGFloat)
-	case absolute(CGFloat)
+public struct AnchoredListPosition<Item: Hashable & Sendable> {
+	public let item: Item
+	public let offset: CGFloat
+	
+	public init(item: Item, offset: CGFloat = 0.0) {
+		self.item = item
+		self.offset = offset
+	}
 }
 
 extension AnchoredListPosition : Equatable where Item : Equatable {}
 extension AnchoredListPosition : Hashable where Item : Hashable {}
+extension AnchoredListPosition : Sendable where Item : Sendable {}
 
+@MainActor
 public struct AnchoredList<Content: View, Item: Hashable & Sendable> {
 	public typealias ViewControllerType = TableViewController<Content, Item>
+	public typealias Position = AnchoredListPosition<Item>
 	
 	@Environment(\.refresh) private var refreshAction
-	@Binding private var scrollState: AnchoredListPosition<Item>
+	@Binding private var scrollState: Position?
 	
 	private let items: [Item]
 	private let content: (Item, Int) -> Content
@@ -26,12 +34,22 @@ public struct AnchoredList<Content: View, Item: Hashable & Sendable> {
 	
 	public init(
 		items: [Item],
-		scrollState: Binding<AnchoredListPosition<Item>>,
+		position: Binding<Position?>,
 		@ViewBuilder content: @escaping (Item, Int) -> Content
 	) {
 		self.items = items
-		self._scrollState = scrollState
+		self._scrollState = position
 		self.content = content
+	}
+	
+	private func updateViewController(_ viewController: ViewControllerType, context: Context) {
+		viewController.items = items
+		viewController.refreshAction = refreshAction
+		viewController.positionChangedHandler = { state in
+			DispatchQueue.main.async {
+				scrollState = state
+			}
+		}
 	}
 }
 
@@ -44,11 +62,7 @@ extension AnchoredList : NSViewControllerRepresentable {
 	}
 	
 	public func updateNSViewController(_ viewController: NSViewControllerType, context: Context) {
-		viewController.items = items
-		viewController.refreshAction = refreshAction
-		viewController.scrollStateHandler = { state in
-			scrollState = state
-		}
+		updateViewController(viewController, context: context)
 	}
 }
 #elseif canImport(UIKit)
@@ -60,13 +74,7 @@ extension AnchoredList : UIViewControllerRepresentable {
 	}
 	
 	public func updateUIViewController(_ viewController: UIViewControllerType, context: Context) {
-		viewController.items = items
-		viewController.refreshAction = refreshAction
-		viewController.scrollStateHandler = { state in
-			DispatchQueue.main.async {
-				scrollState = state
-			}
-		}
+		updateViewController(viewController, context: context)
 	}
 }
 #endif
