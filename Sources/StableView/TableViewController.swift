@@ -14,6 +14,12 @@ public typealias TableViewControllerDelegatingType = UITableViewDelegate
 #endif
 
 public final class TableViewController<Content: View, Item: Hashable & Sendable> : ViewController, TableViewControllerDelegatingType {
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+	public typealias TableView = NSTableView
+#elseif canImport(UIKit)
+	public typealias TableView = UITableView
+#endif
+	
 	public typealias Position = AnchoredListPosition<Item>
 	
 	enum Section {
@@ -27,7 +33,8 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 	let refreshControl = UIRefreshControl()
 #else
 #endif
-	public var positionChangedHandler: ((AnchoredListPosition<Item>?) -> Void)?
+	public var positionChangedHandler: ((Position?) -> Void)?
+	private var lastChangedPosition: Position? = nil
 	private let dataSource: TableViewDiffableDataSource<Section, Item>
 	private var layoutSize: CGSize = .zero
 	private var scrollState: Position? {
@@ -76,8 +83,6 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 				return
 			}
 			
-			print("actually updating:", newValue.count)
-			
 			withScrollStateMutation {
 				var snapshot = dataSource.snapshot()
 				
@@ -102,7 +107,7 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 		
 		// we always restore the starting state *unless* that state was nil
 		if startingState == nil && newState != nil {
-			self.scrollState = newState
+			scrollToBottom()
 			return
 		}
 		
@@ -131,12 +136,13 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 			name: NSView.boundsDidChangeNotification,
 			object: scrollView.contentView
 		)
-
 		
 		scrollView.documentView = tableView
 		
 		self.view = scrollView
 #elseif canImport(UIKit)
+		tableView.allowsSelection = false
+		
 		self.view = tableView
 #endif
 	}
@@ -179,7 +185,7 @@ public final class TableViewController<Content: View, Item: Hashable & Sendable>
 extension TableViewController {
 	private func scrollPosition(at path	: IndexPath) -> CGFloat {
 		let rect = tableView.rectForRow(at: path)
-		
+
 #if os(macOS)
 		// the rows are inset by 10.0 within an NSTableView and I cannot figure out how to calculated this programmatically
 		return rect.minY - 10.0
@@ -219,6 +225,24 @@ extension TableViewController {
 }
 
 extension TableViewController {
+	private func scrollToBottom() {
+		let snapshot = dataSource.snapshot()
+		let targetRow = snapshot.numberOfItems - 1
+
+#if os(macOS)
+		tableView.scrollRowToVisible(targetRow)
+#else
+		tableView.scrollToRow(
+			at: IndexPath(row: targetRow, section: 0),
+			at: .bottom,
+			animated: false
+		)
+#endif
+		
+		
+		self.scrollState = currentScrollState
+	}
+	
 	private var currentScrollState: Position? {
 		guard
 			let indexPaths = tableView.indexPathsForVisibleRows,
@@ -227,14 +251,17 @@ extension TableViewController {
 			return nil
 		}
 		
-		let item = items[topRowPath.row]
-		
 		let rowPosition = scrollPosition(at: topRowPath)
-				
+		
+		guard let item = dataSource.itemIdentifier(for: topRowPath) else {
+			print("this should work...")
+			return nil
+		}
+		
 		// clamp this to avoid rubber banding making it negative
 		let offset = max(scrollPosition - rowPosition, 0.0)
 		
-		return Position(item: item, offset: offset)
+		return AnchoredListPosition(item: item, offset: offset)
 	}
 	
 	private func setScrollState(to pos: Position?) {
@@ -265,7 +292,10 @@ extension TableViewController {
 
 extension TableViewController {
 	private func scrollPositionChanged() {
-		self.scrollState = currentScrollState
+		// This stinks. Without this, there's a hitch related to the calculations within currentScrollState that results in bogus calculations for the current position.
+		DispatchQueue.main.async {
+			self.scrollState = self.currentScrollState
+		}
 	}
 	
 	private func tableLayoutChanged() {
@@ -276,6 +306,14 @@ extension TableViewController {
 	}
 	
 	private func scrollStateChanged() {
-		positionChangedHandler?(scrollState)
+		let state = scrollState
+		
+		guard state != lastChangedPosition else {
+			return
+		}
+		
+		self.lastChangedPosition = state
+
+		positionChangedHandler?(state)
 	}
 }

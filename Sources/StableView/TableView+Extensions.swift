@@ -6,8 +6,8 @@ import AppKit
 import UIKit
 #endif
 
-extension TableView {
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+extension NSTableView {
 	func dequeueHostingCell<Content: View>(identifier: String, content: () -> Content) -> NSView {
 		let reusedView = self.makeView(withIdentifier: NSUserInterfaceItemIdentifier(identifier), owner: nil)
 		let content = content()
@@ -21,10 +21,12 @@ extension TableView {
 		let view = NSHostingView(rootView: content)
 		
 		view.translatesAutoresizingMaskIntoConstraints = false
-
+		
 		return view
 	}
+}
 #else
+extension UITableView {
 	func dequeueHostingCell<Content: View>(identifier: String, content: () -> Content) -> UITableViewCell {
 		let cell = dequeueReusableCell(withIdentifier: identifier) ?? UITableViewCell()
 		let hostingConfig = UIHostingConfiguration(content: content)
@@ -33,5 +35,5 @@ extension TableView {
 		
 		return cell
 	}
-#endif
 }
+#endif

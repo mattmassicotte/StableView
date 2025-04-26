@@ -5,7 +5,6 @@ import AppKit
 
 typealias TableViewDiffableDataSource = NSTableViewDiffableDataSource
 public typealias ViewController = NSViewController
-typealias TableView = NSTableView
 typealias ScrollView = NSScrollView
 
 extension TableViewDiffableDataSource {
@@ -25,9 +24,13 @@ extension TableViewDiffableDataSource {
 		
 		return IndexPath(item: row, section: 0)
 	}
+	
+	func itemIdentifier(for indexPath: IndexPath) -> ItemIdentifierType? {
+		itemIdentifier(forRow: indexPath.row)
+	}
 }
 
-extension TableView {	
+extension NSTableView {
 	var indexPathsForVisibleRows: [IndexPath]? {
 		let rows = rows(in: visibleRect)
 		
@@ -66,6 +69,5 @@ import UIKit
 
 typealias TableViewDiffableDataSource = UITableViewDiffableDataSource
 public typealias ViewController = UIViewController
-typealias TableView = UITableView
 typealias ScrollView = UIScrollView
 #endif
